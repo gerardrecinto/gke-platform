@@ -1,0 +1,37 @@
+# Read-only for developers, narrow write for the deploy identity. Bound to a Google Group on GKE (Google Groups for RBAC).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: orders-viewer, namespace: orders }
+rules:
+  - apiGroups: ["", "apps", "autoscaling"]
+    resources: ["pods", "pods/log", "services", "deployments", "replicasets", "horizontalpodautoscalers", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: orders-viewers, namespace: orders }
+subjects:
+  - { kind: Group, name: orders-viewers@example.com, apiGroup: rbac.authorization.k8s.io }
+roleRef: { kind: Role, name: orders-viewer, apiGroup: rbac.authorization.k8s.io }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: orders-deployer, namespace: orders }
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: deployer, namespace: orders }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: orders-deployer, namespace: orders }
+subjects:
+  - { kind: ServiceAccount, name: deployer, namespace: orders }
+roleRef: { kind: Role, name: orders-deployer, apiGroup: rbac.authorization.k8s.io }

@@ -1,0 +1,17 @@
+# Recommendation only. VPA and HPA must not both act on CPU for the same workload: the HPA divides usage by the request
+# the VPA keeps changing. Here the VPA reads, a person applies. Switch updateMode to Auto only when the HPA scales on a
+# custom metric instead of CPU.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: orders-api
+  namespace: orders
+spec:
+  targetRef: { apiVersion: apps/v1, kind: Deployment, name: orders-api }
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: web
+        minAllowed: { cpu: 50m, memory: 32Mi }
+        maxAllowed: { cpu: "1", memory: 512Mi }

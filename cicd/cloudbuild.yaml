@@ -1,0 +1,29 @@
+# Cloud Build: test, build, push, scan, then update the image tag in Git. Argo CD does the deploy.
+# Cloud Build never holds cluster credentials; it only writes to the repo and Artifact Registry.
+substitutions:
+  _REGION: us-west1
+  _REPO: apps
+steps:
+  - id: test
+    name: python:3.12-slim
+    entrypoint: sh
+    args: ["-c", "pip install -q -e '.[dev]' && pytest -q"]
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/orders-api:$SHORT_SHA", "app"]
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/orders-api:$SHORT_SHA"]
+  - id: scan
+    name: aquasec/trivy
+    args: ["image", "--exit-code", "1", "--severity", "HIGH,CRITICAL", "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/orders-api:$SHORT_SHA"]
+  - id: update-manifest
+    name: gcr.io/cloud-builders/git
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        sed -i "s|image: .*orders-api:.*|image: ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/orders-api:$SHORT_SHA|" k8s/app/deployment.yaml
+        git commit -am "orders-api $SHORT_SHA" && git push origin HEAD:main
+options:
+  logging: CLOUD_LOGGING_ONLY

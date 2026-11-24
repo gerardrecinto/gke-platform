@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gke-platform: GKE Standard and Autopilot as code, tested on a real cluster</title>
+  <meta name="description" content="Terraform for GKE Standard and Autopilot, Workload Identity, autoscaling with HPA, VPA and Cluster Autoscaler, RBAC, stateful recovery, ingress and CI/CD. The Kubernetes parts run on kind in CI.">
+  <link rel="canonical" href="https://gerardrecinto.github.io/gke-platform/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#0b0f14">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="gke-platform">
+  <meta property="og:description" content="GKE Standard and Autopilot as code. Autoscaling, Workload Identity, RBAC, stateful recovery, ingress and CI/CD, checked on a real cluster.">
+  <meta property="og:url" content="https://gerardrecinto.github.io/gke-platform/">
+  <style>
+    :root { --bg:#0b0f14; --bg2:#10161d; --card:#121921; --line:#1f2a35; --fg:#e8eef4; --muted:#93a3b4; --accent:#2dd4bf; --accent2:#38bdf8; --warn:#f59e0b; --ok:#10b981; }
+    @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f7f9fb; --bg2:#eef2f6; --card:#fff; --line:#dbe3ea; --fg:#0f1720; --muted:#53657a; --accent:#0d9488; --accent2:#0284c7; --warn:#b45309; --ok:#059669; } }
+    :root[data-theme="light"] { --bg:#f7f9fb; --bg2:#eef2f6; --card:#fff; --line:#dbe3ea; --fg:#0f1720; --muted:#53657a; --accent:#0d9488; --accent2:#0284c7; --warn:#b45309; --ok:#059669; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:400 1rem/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent2); }
+    code, pre { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em; }
+    code { background:var(--bg2); border:1px solid var(--line); border-radius:6px; padding:.1em .4em; }
+    .wrap { max-width:1080px; margin:0 auto; padding:0 1.25rem; }
+    header.nav { position:sticky; top:0; z-index:5; background:color-mix(in srgb,var(--bg) 82%,transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+    .nav .wrap { display:flex; align-items:center; gap:1.25rem; height:3.6rem; }
+    .brand { font-weight:700; color:var(--fg); text-decoration:none; letter-spacing:-.01em; }
+    .nav a.l { color:var(--muted); text-decoration:none; font-size:.92rem; } .nav a.l:hover { color:var(--fg); }
+    .sp { flex:1; }
+    @media (max-width:760px) { .nav a.l { display:none; } table, thead, tbody, tr, td, th { display:block; } thead { display:none; } td { border:0; padding:.2rem .7rem; } tr { border-bottom:1px solid var(--line); padding:.5rem 0; } }
+    button, .btn { font:inherit; cursor:pointer; }
+    .icon { background:none; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:.3rem .6rem; }
+    .btn { display:inline-block; padding:.65rem 1.1rem; border-radius:10px; border:1px solid var(--line); color:var(--fg); text-decoration:none; font-weight:600; background:var(--card); }
+    .btn.primary { background:var(--accent); color:#06201c; border-color:var(--accent); }
+    .btn:focus-visible, .icon:focus-visible, input:focus-visible, a:focus-visible { outline:2px solid var(--accent2); outline-offset:2px; }
+    .hero { padding:4.5rem 0 3rem; background:radial-gradient(900px 400px at 20% -10%, color-mix(in srgb,var(--accent) 16%,transparent), transparent); }
+    h1 { font-size:clamp(2rem,5vw,3.4rem); line-height:1.1; letter-spacing:-.03em; margin:0 0 1rem; max-width:18ch; }
+    .lead { color:var(--muted); font-size:1.15rem; max-width:62ch; margin:0 0 1.6rem; }
+    .row { display:flex; flex-wrap:wrap; gap:.7rem; }
+    .chips { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.6rem; padding:0; list-style:none; }
+    .chips li { font-size:.82rem; border:1px solid var(--line); border-radius:999px; padding:.2rem .7rem; color:var(--muted); background:var(--card); }
+    section { padding:3rem 0; border-top:1px solid var(--line); }
+    h2 { font-size:1.6rem; letter-spacing:-.02em; margin:0 0 .5rem; }
+    .sub { color:var(--muted); margin:0 0 1.6rem; max-width:70ch; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:1rem; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1.1rem 1.2rem; }
+    .card h3 { margin:.1rem 0 .4rem; font-size:1.02rem; }
+    .card p { margin:0 0 .6rem; color:var(--muted); font-size:.94rem; }
+    .tag { font-size:.74rem; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); font-weight:700; }
+    .flow { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1rem; }
+    .flow svg { min-width:760px; width:100%; height:auto; }
+    .flow text { fill:var(--fg); font:600 12px system-ui,sans-serif; } .flow .m { fill:var(--muted); font-weight:400; font-size:10.5px; }
+    .flow rect.b { fill:var(--bg2); stroke:var(--line); } .flow rect.a { fill:color-mix(in srgb,var(--accent) 14%,var(--bg2)); stroke:var(--accent); }
+    .flow path { stroke:var(--muted); fill:none; stroke-width:1.4; }
+    .planner { display:grid; grid-template-columns:minmax(0,300px) 1fr; gap:1.2rem; align-items:start; }
+    @media (max-width:760px) { .planner { grid-template-columns:1fr; } }
+    label { display:block; font-size:.9rem; font-weight:600; margin:.9rem 0 .2rem; } label:first-child { margin-top:0; }
+    input[type=range] { width:100%; accent-color:var(--accent); }
+    output { font-variant-numeric:tabular-nums; color:var(--accent); font-weight:700; }
+    .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:.6rem; margin-top:1rem; }
+    .stat { background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:.55rem .7rem; }
+    .stat b { display:block; font-size:1.2rem; font-variant-numeric:tabular-nums; } .stat span { font-size:.78rem; color:var(--muted); }
+    .chart { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:.8rem; }
+    .chart svg { width:100%; height:auto; display:block; }
+    .chart text { fill:var(--muted); font:11px system-ui,sans-serif; }
+    .note { color:var(--muted); font-size:.85rem; margin-top:.6rem; }
+    table { width:100%; border-collapse:collapse; font-size:.93rem; }
+    th, td { text-align:left; padding:.6rem .7rem; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:600; font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; }
+    .yes { color:var(--ok); font-weight:700; } .no { color:var(--warn); font-weight:700; }
+    pre code { background:none; border:0; padding:0; font-size:.85rem; }
+    pre { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1rem; overflow-x:auto; }
+    footer { padding:2rem 0 3rem; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+    .sr { position:absolute; left:-9999px; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+  </style>
+  <style>select { width:100%; font:inherit; padding:.5rem; border-radius:8px; border:1px solid var(--line); background:var(--bg2); color:var(--fg); }</style>
+</head>
+<body>
+<a class="sr" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="#">gke-platform</a>
+  <a class="l" href="#choose">Standard or Autopilot</a><a class="l" href="#scale">Autoscaling</a><a class="l" href="#planner">Planner</a><a class="l" href="#map">Requirement map</a><a class="l" href="#verified">Verified</a>
+  <span class="sp"></span>
+  <button class="icon" id="theme" aria-label="Switch between light and dark theme">Theme</button>
+  <a class="btn" href="https://github.com/gerardrecinto/gke-platform">Source</a>
+</div></header>
+
+<main id="main">
+<div class="hero"><div class="wrap">
+  <h1>GKE as code, with the Kubernetes parts run for real.</h1>
+  <p class="lead">Terraform for GKE Standard and Autopilot clusters, Workload Identity, a private network, autoscaling, RBAC, stateful recovery, ingress and CI/CD. The manifests run on a kind cluster in CI: the HPA scales under load, the VPA gives a recommendation, RBAC denials are asserted, and a StatefulSet is wiped and restored. The Google Cloud side is validated and scanned, and has not been applied to a live project. This page says which is which.</p>
+  <div class="row"><a class="btn primary" href="#planner">Try the planner</a><a class="btn" href="https://github.com/gerardrecinto/gke-platform">Read the code</a></div>
+  <ul class="chips" aria-label="Checks in CI"><li>terraform fmt and validate</li><li>trivy config: 0 high or critical</li><li>kind: HPA, VPA, RBAC, restore</li><li>pytest and JavaScript parity</li></ul>
+</div></div>
+
+<section id="choose"><div class="wrap">
+  <h2>Standard or Autopilot</h2>
+  <p class="sub">Both are in <code>terraform/envs/dev</code>. The choice is about who owns the nodes, and it changes which autoscaler you tune.</p>
+  <table>
+    <thead><tr><th>Question</th><th>Standard</th><th>Autopilot</th></tr></thead>
+    <tbody>
+      <tr><td>Who sizes nodes?</td><td>You: machine type, pool bounds per zone, upgrade surge.</td><td>Google. No node pool resource exists.</td></tr>
+      <tr><td>What do you pay for?</td><td>Nodes, used or not.</td><td>Pod resource requests, so requests are the cost control.</td></tr>
+      <tr><td>Cluster Autoscaler</td><td>Set min and max per zone on the pool. Tuned here with <code>BALANCED</code> and surge 1, unavailable 0.</td><td>Not yours to tune. Nodes appear to fit pending pods.</td></tr>
+      <tr><td>DaemonSets, privileged agents, GPUs</td><td>Allowed.</td><td>Restricted.</td></tr>
+      <tr><td>I would choose it when</td><td>A workload needs a node-level agent, or bin packing is the cost lever.</td><td>The team wants requests to be the only knob. This is the default for ordinary services.</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Cost: Standard leaves empty capacity if the pool minimum is set too high. Autopilot hides node detail you may later want. I would flip from Autopilot to Standard the first time an agent needs host access.</p>
+</div></section>
+
+<section id="scale"><div class="wrap">
+  <h2>Three autoscalers, one rule</h2>
+  <p class="sub">The HPA adds pods, the VPA changes requests, the Cluster Autoscaler adds nodes. They chain, and they can fight.</p>
+  <div class="grid">
+    <article class="card"><span class="tag">HPA</span><h3>Replicas follow CPU</h3><p>Target 50% of the request, 2 to 8 replicas, scale up fast, scale down one pod a minute after a five minute window. On kind the test asserts it scales past the minimum of 2 under load; it reached 4 at the assertion and 8 in a longer run.</p><p><code>k8s/app/hpa.yaml</code></p></article>
+    <article class="card"><span class="tag">VPA</span><h3>Requests follow usage</h3><p>Recommendation only. If the VPA changed CPU requests while the HPA divides by them, the two would chase each other. The test fails the build if both drive CPU with the VPA on Auto.</p><p><code>k8s/app/vpa.yaml</code></p></article>
+    <article class="card"><span class="tag">Cluster Autoscaler</span><h3>Nodes follow pending pods</h3><p>Per-zone bounds on a regional pool, so three zones means three times the number you type. The planner below shows when pods stay Pending because the ceiling is reached. Not runnable on kind; it is a GKE node pool setting.</p><p><code>terraform/modules/gke-standard</code></p></article>
+  </div>
+</div></section>
+
+<section id="planner"><div class="wrap">
+  <h2>Planner</h2>
+  <p class="sub">The same maths as <code>src/gkeplan</code>, ported to JavaScript and checked against it on 90 generated cases. Node allocatable uses the reservation tiers in the GKE documentation, so a 4 vCPU node gives pods 3920m, not 4000m.</p>
+  <div class="planner">
+    <div class="card">
+      <label for="mach">Machine type</label>
+      <select id="mach"><option>e2-standard-2</option><option selected>e2-standard-4</option><option>e2-standard-8</option><option>n2-standard-4</option><option>n2-standard-8</option></select>
+      <label for="rep">Replicas wanted: <output id="repOut">40</output></label>
+      <input id="rep" type="range" min="1" max="300" value="40">
+      <label for="cpu">Pod CPU request: <output id="cpuOut">500</output>m</label>
+      <input id="cpu" type="range" min="50" max="2000" step="50" value="500">
+      <label for="mem">Pod memory request: <output id="memOut">512</output> MiB</label>
+      <input id="mem" type="range" min="64" max="4096" step="64" value="512">
+      <label for="max">Pool maximum per zone: <output id="maxOut">4</output> (3 zones)</label>
+      <input id="max" type="range" min="1" max="12" value="4">
+      <div class="stats" aria-live="polite">
+        <div class="stat"><b id="sNodes">-</b><span>Nodes</span></div>
+        <div class="stat"><b id="sPer">-</b><span>Pods per node</span></div>
+        <div class="stat"><b id="sUse">-</b><span>CPU requested</span></div>
+        <div class="stat"><b id="sPend">-</b><span>Pending pods</span></div>
+      </div>
+      <p class="note" id="sNote"></p>
+    </div>
+    <div class="card">
+      <h3>HPA: what happens at this reading?</h3>
+      <label for="cur">Current replicas: <output id="curOut">4</output></label>
+      <input id="cur" type="range" min="1" max="20" value="4">
+      <label for="met">Average CPU vs request: <output id="metOut">100</output>% (target 50%)</label>
+      <input id="met" type="range" min="5" max="400" step="5" value="100">
+      <div class="stats" aria-live="polite">
+        <div class="stat"><b id="sDes">-</b><span>Desired replicas (min 2, max 8)</span></div>
+        <div class="stat"><b id="sTol">-</b><span>Inside 10% tolerance</span></div>
+      </div>
+      <p class="note">Formula: ceil(current x metric / target). No change within 10% of the target.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="map"><div class="wrap">
+  <h2>Requirement map</h2>
+  <p class="sub">Each row is one thing a GKE platform role asks for, where it lives, and how it is checked.</p>
+  <table>
+    <thead><tr><th>Requirement</th><th>Where</th><th>Check</th></tr></thead>
+    <tbody>
+      <tr><td>GKE clusters with Terraform</td><td><code>terraform/modules/gke-standard</code>, <code>gke-autopilot</code>, <code>envs/dev</code></td><td>fmt, validate, trivy in CI. Not applied.</td></tr>
+      <tr><td>Standard and Autopilot</td><td>Two modules, one network, the table above</td><td>validate</td></tr>
+      <tr><td>Networking, ingress, load balancing</td><td><code>modules/network</code>, <code>k8s/ingress</code> (Ingress, BackendConfig, FrontendConfig, ManagedCertificate, Gateway API)</td><td>Cross-reference tests: health check port equals container port, Service names the BackendConfig. Not run on GKE.</td></tr>
+      <tr><td>Service discovery</td><td>ClusterIP Service, headless Service for the StatefulSet</td><td>kind: the load generator reaches the Service by DNS name</td></tr>
+      <tr><td>HPA, VPA, Cluster Autoscaler</td><td><code>k8s/app</code>, pool <code>autoscaling</code> block</td><td>kind for HPA and VPA. Cluster Autoscaler is a node pool setting, modelled by the planner, not run.</td></tr>
+      <tr><td>VPC, IAM, Cloud Load Balancing</td><td><code>modules/network</code> (private Google access, NAT, health check firewall), node service account with five roles</td><td>trivy, validate</td></tr>
+      <tr><td>RBAC</td><td><code>k8s/rbac</code></td><td>kind: seven <code>auth can-i</code> assertions, including a deny on secrets and on another namespace</td></tr>
+      <tr><td>Workload Identity</td><td><code>modules/workload-identity</code>, ServiceAccount annotation</td><td>Test that the annotation matches the Terraform names. Not exchanged with a live project.</td></tr>
+      <tr><td>Stateful workloads and recovery</td><td><code>k8s/stateful</code>, <code>modules/backup</code></td><td>kind: pod deleted, data survives; backup job, wipe, restore job, 2 of 2 lines back. Backup for GKE plan not applied.</td></tr>
+      <tr><td>Observability</td><td><code>modules/observability</code>, <code>k8s/monitoring</code></td><td>validate. Three PromQL alerts: HPA pinned at max, crash loops, a volume that fills within 24 hours.</td></tr>
+      <tr><td>CI/CD</td><td><code>cicd/cloudbuild.yaml</code>, <code>cicd/argocd</code>, <code>.github/workflows</code></td><td>Order and shape asserted in tests. Argo CD and Cloud Build not run against a project.</td></tr>
+      <tr><td>Linux, Bash, Python</td><td><code>scripts/kind-test.sh</code>, <code>src/gkeplan</code></td><td>The script is what CI runs.</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section id="verified"><div class="wrap">
+  <h2>What is verified</h2>
+  <div class="grid">
+    <article class="card"><span class="tag yes">Run</span><h3>On a real Kubernetes</h3><p>HPA scale-out, VPA recommendation, RBAC allow and deny, Pod Security restricted, a NetworkPolicy deny from another namespace, StatefulSet reschedule, backup and restore. <code>scripts/kind-test.sh</code> runs in CI on every push.</p></article>
+    <article class="card"><span class="tag yes">Checked</span><h3>Without a cloud</h3><p>Terraform fmt and validate, a trivy scan with zero high or critical findings, manifest cross-references, 30 Python tests, JavaScript parity.</p></article>
+    <article class="card"><span class="tag no">Not run</span><h3>Needs a Google project</h3><p>terraform apply, Workload Identity token exchange, the Google load balancer, Managed Prometheus alerts, Backup for GKE, Cloud Build and Argo CD. Dataplane V2 enforcement of NetworkPolicy is not exercised; kind's own CNI was.</p></article>
+  </div>
+</div></section>
+
+<section id="run"><div class="wrap">
+  <h2>Run it</h2>
+<pre><code>git clone https://github.com/gerardrecinto/gke-platform && cd gke-platform
+./scripts/kind-test.sh            # docker, kind, kubectl, helm; about 5 minutes
+python3 -m venv .venv &amp;&amp; . .venv/bin/activate &amp;&amp; pip install -e ".[dev]" &amp;&amp; pytest -q
+python -m gkeplan nodes --replicas 40 --cpu 500 --mem 512
+cd terraform/envs/dev &amp;&amp; terraform init -backend=false &amp;&amp; terraform validate</code></pre>
+</div></section>
+</main>
+
+<footer><div class="wrap">MIT licensed. <a href="https://github.com/gerardrecinto/gke-platform">github.com/gerardrecinto/gke-platform</a> by Gerard Recinto.</div></footer>
+
+<script src="plan.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const root = document.documentElement;
+const saved = localStorage.getItem("theme");
+if (saved) root.dataset.theme = saved;
+$("theme").addEventListener("click", () => {
+  const dark = (root.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
+  root.dataset.theme = dark ? "light" : "dark";
+  localStorage.setItem("theme", root.dataset.theme);
+});
+function nodes() {
+  const o = { replicas: +$("rep").value, podCpu: +$("cpu").value, podMem: +$("mem").value, machine: $("mach").value, maxPerZone: +$("max").value };
+  ["rep", "cpu", "mem", "max"].forEach((k) => ($(k + "Out").textContent = $(k).value));
+  const r = GKEPlan.nodesNeeded(o);
+  if (!r.fits) { $("sNodes").textContent = "-"; $("sPer").textContent = "-"; $("sUse").textContent = "-"; $("sPend").textContent = "-"; $("sNote").textContent = "One pod is larger than a node can give. Pick a bigger machine or a smaller request."; return; }
+  $("sNodes").textContent = r.nodes; $("sPer").textContent = r.pods_per_node;
+  $("sUse").textContent = r.cpu_requested_pct + "%"; $("sPend").textContent = r.pending_pods;
+  $("sNote").textContent = (r.pending_pods ? "The pool ceiling is reached: " + r.pending_pods + " pods stay Pending. Raise the maximum or shrink requests. " : "") + "Limited by " + r.limited_by + ". Each node gives pods " + r.allocatable_cpu_m + "m CPU and " + Math.round(r.allocatable_mem_mib) + " MiB.";
+}
+function hpa() {
+  ["cur", "met"].forEach((k) => ($(k + "Out").textContent = $(k).value));
+  const cur = +$("cur").value, met = +$("met").value;
+  $("sDes").textContent = GKEPlan.hpaDesired(cur, met, 50, 2, 8);
+  $("sTol").textContent = Math.abs(met / 50 - 1) <= 0.1 ? "yes, no change" : "no";
+}
+["mach", "rep", "cpu", "mem", "max"].forEach((k) => $(k).addEventListener("input", nodes));
+["cur", "met"].forEach((k) => $(k).addEventListener("input", hpa));
+nodes(); hpa();
+</script>
+</body>
+</html>

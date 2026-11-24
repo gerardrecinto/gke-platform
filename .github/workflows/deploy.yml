@@ -1,0 +1,26 @@
+# Template: deploy with GitHub OIDC and Workload Identity Federation, no service account keys.
+# Disabled until you set the repository variables WIF_PROVIDER and WIF_SERVICE_ACCOUNT. Not run against a real project.
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: ${{ vars.WIF_PROVIDER != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: std-dev
+          location: us-west1
+      - run: kubectl apply -f k8s/app/ --dry-run=server

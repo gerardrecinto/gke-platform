@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  namespace: orders
+  labels: { app: orders-api }
+spec:
+  # No replicas field: the HPA owns the count. Setting it here would reset the HPA on every apply.
+  selector:
+    matchLabels: { app: orders-api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: orders-api }
+    spec:
+      serviceAccountName: orders-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: orders-api }
+      containers:
+        - name: web
+          image: python:3.12-slim
+          # Stand-in for the orders service: each request burns a little CPU, so the HPA has something to react to.
+          command: ["python", "-c"]
+          args:
+            - |
+              from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+              class H(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      sum(i * i for i in range(300000))
+                      self.send_response(200); self.end_headers(); self.wfile.write(b"ok\n")
+                  def log_message(self, *a): pass
+              ThreadingHTTPServer(("", 8080), H).serve_forever()
+          ports:
+            - { name: http, containerPort: 8080 }
+          # Requests are what the HPA divides by, what the scheduler packs on and, on Autopilot, what you are billed for.
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }

@@ -1,0 +1,10 @@
+# Managed Service for Prometheus scrapes this endpoint. The sample app does not expose /metrics, so this is the shape to use
+# for a service that does.
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata: { name: orders-api, namespace: orders }
+spec:
+  selector:
+    matchLabels: { app: orders-api }
+  endpoints:
+    - { port: http, path: /metrics, interval: 30s }
