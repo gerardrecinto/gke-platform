@@ -92,7 +92,7 @@
   <h1>GKE as code, with the Kubernetes parts run for real.</h1>
   <p class="lead">Terraform for GKE Standard and Autopilot clusters, Workload Identity, a private network, autoscaling, RBAC, stateful recovery, ingress and CI/CD. The manifests run on a kind cluster in CI: the HPA scales under load, the VPA gives a recommendation, RBAC denials are asserted, and a StatefulSet is wiped and restored. The Google Cloud side is validated and scanned, and has not been applied to a live project. This page says which is which.</p>
   <div class="row"><a class="btn primary" href="#planner">Try the planner</a><a class="btn" href="https://github.com/gerardrecinto/gke-platform">Read the code</a></div>
-  <ul class="chips" aria-label="Checks in CI"><li>terraform fmt and validate</li><li>trivy config: 0 high or critical</li><li>kind: HPA, VPA, RBAC, restore</li><li>pytest and JavaScript parity</li></ul>
+  <ul class="chips" aria-label="Checks in CI"><li>terraform fmt and validate</li><li>trivy config: 0 high or critical</li><li>kind: HPA, VPA, RBAC, Flux, Helm, restore</li><li>pytest and JavaScript parity</li></ul>
 </div></div>
 
 <section id="choose"><div class="wrap">
@@ -175,7 +175,9 @@
       <tr><td>Workload Identity</td><td><code>modules/workload-identity</code>, ServiceAccount annotation</td><td>Test that the annotation matches the Terraform names. Not exchanged with a live project.</td></tr>
       <tr><td>Stateful workloads and recovery</td><td><code>k8s/stateful</code>, <code>modules/backup</code></td><td>kind: pod deleted, data survives; backup job, wipe, restore job, 2 of 2 lines back. Backup for GKE plan not applied.</td></tr>
       <tr><td>Observability</td><td><code>modules/observability</code>, <code>k8s/monitoring</code></td><td>validate. Three PromQL alerts: HPA pinned at max, crash loops, a volume that fills within 24 hours.</td></tr>
-      <tr><td>CI/CD</td><td><code>cicd/cloudbuild.yaml</code>, <code>cicd/argocd</code>, <code>.github/workflows</code></td><td>Order and shape asserted in tests. Argo CD and Cloud Build not run against a project.</td></tr>
+      <tr><td>CI/CD and GitOps</td><td><code>cicd/cloudbuild.yaml</code>, <code>cicd/argocd</code>, <code>cicd/flux</code>, <code>.github/workflows</code></td><td>Flux runs on kind: it applies <code>k8s/app</code> from this repo and restores a PodDisruptionBudget deleted by hand. Cloud Build and Argo CD are shape-tested, not run.</td></tr>
+      <tr><td>Helm</td><td><code>charts/orders-api</code></td><td>kind: <code>helm lint</code> and install, Deployment ready</td></tr>
+      <tr><td>Remote state, Cloud Storage, Cloud DNS</td><td><code>terraform/bootstrap</code> (versioned, private bucket), <code>modules/dns</code></td><td>validate, trivy. Not applied.</td></tr>
       <tr><td>Linux, Bash, Python</td><td><code>scripts/kind-test.sh</code>, <code>src/gkeplan</code></td><td>The script is what CI runs.</td></tr>
     </tbody>
   </table>
@@ -184,7 +186,7 @@
 <section id="verified"><div class="wrap">
   <h2>What is verified</h2>
   <div class="grid">
-    <article class="card"><span class="tag yes">Run</span><h3>On a real Kubernetes</h3><p>HPA scale-out, VPA recommendation, RBAC allow and deny, Pod Security restricted, a NetworkPolicy deny from another namespace, StatefulSet reschedule, backup and restore. <code>scripts/kind-test.sh</code> runs in CI on every push.</p></article>
+    <article class="card"><span class="tag yes">Run</span><h3>On a real Kubernetes</h3><p>HPA scale-out, VPA recommendation, RBAC allow and deny, Pod Security restricted, a NetworkPolicy deny from another namespace, Flux reconciling this repo, a Helm install, StatefulSet reschedule, backup and restore. <code>scripts/kind-test.sh</code> runs in CI on every push.</p></article>
     <article class="card"><span class="tag yes">Checked</span><h3>Without a cloud</h3><p>Terraform fmt and validate, a trivy scan with zero high or critical findings, manifest cross-references, 30 Python tests, JavaScript parity.</p></article>
     <article class="card"><span class="tag no">Not run</span><h3>Needs a Google project</h3><p>terraform apply, Workload Identity token exchange, the Google load balancer, Managed Prometheus alerts, Backup for GKE, Cloud Build and Argo CD. Dataplane V2 enforcement of NetworkPolicy is not exercised; kind's own CNI was.</p></article>
   </div>

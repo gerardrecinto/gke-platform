@@ -21,7 +21,9 @@ Lab scale. Nothing here has been applied to a live Google Cloud project (see "Wh
 | `k8s/rbac` | Read-only viewers, narrow deployer | kind, seven `can-i` assertions |
 | `k8s/stateful` | StatefulSet, backup CronJob, restore | kind, wipe and restore |
 | `k8s/ingress` | Ingress, BackendConfig, FrontendConfig, ManagedCertificate, Gateway API | cross-reference tests |
-| `cicd/` | Cloud Build, Argo CD Application, GitHub OIDC deploy template | shape tests |
+| `cicd/` | Cloud Build, Argo CD Application, Flux CD GitRepository and Kustomization, GitHub OIDC deploy template | shape tests; Flux runs on kind and puts back a deleted PDB |
+| `charts/orders-api` | The same workload as a Helm chart | `helm lint`, installed on kind |
+| `terraform/bootstrap`, `modules/dns` | Versioned, private GCS bucket for Terraform state; Cloud DNS zone and record, global static IP | validate, trivy |
 | `src/gkeplan`, `site/` | Allocatable, HPA, VPA and node-count maths, and the Pages planner | 30 pytest tests, JS parity on 90 cases |
 
 ## Run it
@@ -42,13 +44,13 @@ If Docker is not running, `kind-test.sh` stops at cluster creation; start Docker
 - **HPA on CPU, VPA in recommendation mode.** Both on CPU with the VPA on Auto would chase each other, and a test fails the build if that happens. Cost: requests are changed by a person.
 - **Private nodes, public control plane endpoint with authorized networks.** Cheaper and simpler than a fully private endpoint plus a bastion. Flip to a private endpoint when the CI runners sit inside the VPC.
 - **Node pool managed apart from the cluster** (`remove_default_node_pool`), so a pool change never recreates the cluster.
-- **Argo CD for deploy, Cloud Build for build.** Cloud Build never holds cluster credentials. Cost: one more system to run.
+- **Argo CD or Flux for deploy, Cloud Build for build.** Cloud Build never holds cluster credentials. Cost: one more system to run. I ship both: Argo CD for its UI and app-of-apps, Flux for its small footprint and Helm and Kustomize controllers. Pick one per cluster.
 - **Gateway API next to Ingress.** Ingress is what most clusters run today; Gateway is where GKE is going.
 
 ## What is verified
 
-- **Run on kind, asserted by `scripts/kind-test.sh` and CI:** the Deployment starts under the restricted Pod Security level, the HPA scales past 2 replicas under load, the VPA recommender produces a CPU recommendation, RBAC allows and denies as written, a NetworkPolicy blocks a pod from another namespace, a StatefulSet pod survives deletion, and a wiped ledger is restored from the backup volume.
+- **Run on kind, asserted by `scripts/kind-test.sh` and CI:** the Deployment starts under the restricted Pod Security level, the HPA scales past 2 replicas under load, the VPA recommender produces a CPU recommendation, RBAC allows and denies as written, a NetworkPolicy blocks a pod from another namespace, Flux applies `k8s/app` from this repo and puts back a PodDisruptionBudget deleted by hand, the Helm chart installs, a StatefulSet pod survives deletion, and a wiped ledger is restored from the backup volume.
 - **Checked without a cloud:** `terraform fmt`, `validate`, a trivy config scan with no high or critical findings, manifest cross-reference tests, Python tests, and a JavaScript port checked against Python.
-- **Not run:** `terraform apply` or plan against a Google project, Workload Identity token exchange, the Google load balancer and managed certificate, Managed Prometheus alerts, Backup for GKE, Cloud Build, Argo CD, and the Cluster Autoscaler itself (it is a node pool setting; the planner models it). The allocatable figures follow the GKE reservation tiers and match the documented 3920m for a 4 vCPU node; memory was not compared against a live node.
+- **Not run:** `terraform apply` or plan against a Google project, Workload Identity token exchange, the Google load balancer and managed certificate, Managed Prometheus alerts, Backup for GKE, Cloud Build, Argo CD (the Flux path is run on kind), the GCS state backend and Cloud DNS, and the Cluster Autoscaler itself (it is a node pool setting; the planner models it). The allocatable figures follow the GKE reservation tiers and match the documented 3920m for a 4 vCPU node; memory was not compared against a live node.
 
 MIT licensed.

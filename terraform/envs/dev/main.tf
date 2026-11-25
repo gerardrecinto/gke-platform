@@ -62,3 +62,10 @@ module "backup" {
   cluster_name = module.standard.name
   cluster_id   = module.standard.id
 }
+
+# Reserves the global IP named in k8s/ingress and points orders.<domain> at it.
+module "dns" {
+  source     = "../../modules/dns"
+  project_id = var.project_id
+  dns_name   = var.dns_name
+}

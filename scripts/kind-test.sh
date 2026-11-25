@@ -109,6 +109,25 @@ lines=$(kubectl -n $NS exec ledger-0 -- sh -c 'wc -l < /data/ledger.log' | tr -d
 [ "$lines" = 2 ] || fail "restore left $lines lines, expected 2"
 pass "Backup job copied the ledger, the ledger was wiped, the restore job brought back 2 of 2 lines"
 
+echo "== Flux CD"
+kubectl apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml >/dev/null
+kubectl -n flux-system rollout status deploy/source-controller --timeout=180s >/dev/null
+kubectl -n flux-system rollout status deploy/kustomize-controller --timeout=180s >/dev/null
+kubectl apply -f cicd/flux/sync.yaml >/dev/null
+kubectl -n flux-system wait kustomization/orders --for=condition=Ready --timeout=240s >/dev/null || { kubectl -n flux-system get kustomization,gitrepository; fail "Flux did not reconcile k8s/app"; }
+pass "Flux pulled the repo and applied k8s/app"
+kubectl -n $NS delete pdb orders-api >/dev/null
+for i in $(seq 1 30); do kubectl -n $NS get pdb orders-api >/dev/null 2>&1 && break; sleep 5; done
+kubectl -n flux-system annotate --overwrite kustomization/orders reconcile.fluxcd.io/requestedAt="$(date +%s)" >/dev/null
+for i in $(seq 1 30); do kubectl -n $NS get pdb orders-api >/dev/null 2>&1 && break; sleep 5; done
+kubectl -n $NS get pdb orders-api >/dev/null 2>&1 || fail "Flux did not put back the deleted PodDisruptionBudget"
+pass "Flux put back a PodDisruptionBudget deleted by hand"
+
+echo "== Helm"
+helm lint charts/orders-api >/dev/null
+helm upgrade --install orders-helm charts/orders-api -n orders-helm --create-namespace --wait --timeout 3m >/dev/null
+pass "Helm chart linted and installed, Deployment ready, HPA and PDB created"
+
 echo "== NetworkPolicy"
 kubectl apply -f k8s/app/networkpolicy.yaml >/dev/null
 kubectl create ns outsider >/dev/null
