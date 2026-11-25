@@ -38,10 +38,10 @@ def test_hpa_targets_a_real_deployment_and_deployment_does_not_pin_replicas():
 
 def test_pdb_and_service_select_the_deployment_pods():
     pods = of("Deployment")[0]["spec"]["template"]["metadata"]["labels"]
-    for kind in ("PodDisruptionBudget",):
-        sel = of(kind)[0]["spec"]["selector"]["matchLabels"]
-        assert sel.items() <= pods.items()
-    assert of("Service")[0]["spec"]["selector"].items() <= pods.items() if of("Service")[0]["spec"].get("selector") else True
+    pdb = [p for p in of("PodDisruptionBudget") if p["metadata"]["name"] == "orders-api"][0]
+    assert pdb["spec"]["selector"]["matchLabels"].items() <= pods.items()
+    svc = [s for s in of("Service") if s["metadata"]["name"] == "orders-api"][0]
+    assert svc["spec"]["selector"].items() <= pods.items()
 
 
 def test_vpa_and_hpa_do_not_both_drive_cpu():
