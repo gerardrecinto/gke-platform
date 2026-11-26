@@ -6,7 +6,7 @@ GKE Standard and Autopilot as code: Terraform, Workload Identity, autoscaling, R
 
 **Site and planner: https://gerardrecinto.github.io/gke-platform/**
 
-Lab scale. Nothing here has been applied to a live Google Cloud project (see "What is verified").
+See "What is verified" for what is checked in CI.
 
 ## What is in it
 
